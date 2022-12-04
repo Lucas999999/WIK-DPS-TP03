@@ -1,5 +1,5 @@
 FROM rust:latest
-WORKDIR /usr/src/TP-WIK-DPS-02
+WORKDIR /usr/src/TP-WIK-DPS-03
 COPY . .
 RUN cargo build
-CMD ["./target/debug/TP-WIK-DPS-TP02"]
+CMD ["./target/debug/TP-WIK-DPS-TP03"]

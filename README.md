@@ -1,4 +1,4 @@
-# WIK-DPS-TP01
+# WIK-DPS-TP02
 
 Voici le rendu du TP 2 de devops, le but de ce tp était de faire 2 images docker (la premiere avec un seul stage et la seconde avec 2) permettant de lancer l'API faite lors du TP1
 
