@@ -1,83 +1,81 @@
-# WIK-DPS-TP02
+# WIK-DPS-TP03
 
-Voici le rendu du TP 2 de devops, le but de ce tp était de faire 2 images docker (la premiere avec un seul stage et la seconde avec 2) permettant de lancer l'API faite lors du TP1
+Voici le rendu du TP 3 de devops, le but de ce tp était de faire un fichier docker-compose permettant de lancer 4 répliques du conteneur créé au TP02 ainsi qu'un reverse-proxy qui s'occupera du loadbalancing sur les 4 conteneurs.
 
-## Image 1
-### contenu
+## docker-compose
 
-voici le [dockerfile](Dockerfile) de l'image 1:
+voici le [fichier](docker-compose.yaml):
 ```
-FROM rust:latest
-WORKDIR /usr/src/TP-WIK-DPS-02
-COPY . .
-RUN cargo build
-CMD ["./target/debug/TP-WIK-DPS-TP02"]
+version: '3.8'
+
+services:
+
+  rust_api:
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    expose:
+      - "8080"
+
+    deploy:
+      replicas: 4
+
+    restart: always
+
+    networks:
+      - front-network
+
+  proxy:
+
+    image: nginx:latest
+
+
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    
+    ports:
+      - "8080:8080"
+
+    depends_on: 
+      - rust_api
+
+    networks:
+      - front-network
+
+networks:
+  front-network:
+    driver: bridge
 ```
-### Fonctionnement
+## nginx
 
-Il suffit de le build pour creer l'image après avoir cloné le repertoire:
-
+voici le [fichier](nginx.conf) de configuration d'nginx qui permet le loadbalancing:
 ```
-docker build -f Dockerfile -t [nom]
-```
+events {
 
-puis ensuite on peut le lancer comme un conteneur classique
+}
 
-```
-docker run -p 3333:3333 [nom]
-```
+http {
+  server {
+    listen 8080;
 
-on peut vérifier que cela fonctionne:
-
-```
-[hurlu@monke DevOps]$ curl localhost:3333/ping
-{"Host":"localhost:3333","User-Agent":"curl/7.86.0","Accept":"*/*"}
-```
-
-### Trivy
-
-l'image a été scannée avec trivy, le scan se trouve ici:
-[image 1](trivy1.md)
-
-On se rend compte que beaucoup de vulnérabilités ont été retournées à la suite de ce scan
-
-## Image 2
-### contenu
-
-voici le [dockerfile](Dockerfile2) de l'image 2:
-```
-FROM rust:latest as builder
-WORKDIR /usr/src/TP-WIK-DPS-02
-COPY . .
-RUN cargo build
-
-FROM builder as exec
-CMD ["./target/debug/TP-WIK-DPS-TP02"]
-```
-### Fonctionnement
-
-Il suffit de le build pour creer l'image après avoir cloné le repertoire:
-
-```
-docker build -f Dockerfile2 -t [nom]
-```
-
-puis ensuite on peut le lancer comme un conteneur classique
-
-```
-docker run -p 3333:3333 [nom]
-```
-
-on peut vérifier que cela fonctionne:
-
-```
-[hurlu@monke DevOps]$ curl localhost:3333/ping
-{"Host":"localhost:3333","User-Agent":"curl/7.86.0","Accept":"*/*"}
+    location / {
+      proxy_pass http://rust_api:8080/;
+    }
+  }
+}
 ```
 
-### Trivy
+ainsi le seul port exposé est le 8080 du reverse-proxy, pour voir le résultat il suffit de lancer le docker-compose:
 
-l'image a été scannée avec trivy, le scan se trouve ici:
-[image 2](trivy2.md)
+```
+[hurlu@monke TP-WIK-DPS-TP03]$ docker compose up --build
+[+] Building 89.8s (9/9) FINISHED  
+[...]
+tp-wik-dps-tp03-proxy-1     | 172.19.0.1 - - [04/Dec/2022:21:31:47 +0000] "GET / HTTP/1.1" 404 5 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:107.0) Gecko/20100101 Firefox/107.0"
+tp-wik-dps-tp03-rust_api-4  | REQUEST : GET /ping HTTP/1.0
+tp-wik-dps-tp03-rust_api-4  | Hostname: "a50e4e70ea15"
+```
 
-Encore une fois il y a tout autant de vulnérabilités
+l'api a également été modifiée afin d'afficher son hostname sur la route /ping
